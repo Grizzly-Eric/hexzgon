@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Circles</title>
+    <style>
+        body {
+            margin: 0;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background-color: #f5f5dc;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const ctx = canvas.getContext('2d');
+        let selectedCircle = null;
+
+        let steps = 20;
+        let score = 0;
+
+        // 颜色数组
+        const colors = [
+            '#7C98B3',  // 明亮莫兰迪蓝
+            '#E88F8F',  // 明亮莫兰迪粉
+            '#83A99B',  // 明亮莫兰迪绿
+            '#E19B63',  // 明亮莫兰迪橙
+            '#B58EA4',  // 明亮莫兰迪紫
+            '#A68A6C'   // 明亮莫兰迪棕
+        ];
+
+        const LAYERS = 5;
+        const CELL_SIZE = Math.floor(Math.min(canvas.width, canvas.height) / 10);
+        const COLUMN_DIST = Math.cos(30 * Math.PI / 180) * CELL_SIZE;
+        const CIRCLE_RADIUS = Math.floor(CELL_SIZE / 3);
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        /**
+         * Circle 类：表示游戏中的圆形对象
+         * - 处理圆形的绘制、移动、消除动画
+         * - 维护圆形的位置、颜色、状态等属性
+         */
+        class Circle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.targetX = x;
+                this.targetY = y;
+                this.radius = CIRCLE_RADIUS;
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.selected = false;
+                this.moving = false;
+                this.opacity = 1;
+                this.removing = false;
+            }
+
+            draw() {
+                if (this.opacity <= 0) return;
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color.replace('rgb', 'rgba').replace(')', `,${this.opacity})`);
+                ctx.fill();
+
+                if (this.selected) {
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+                }
+            }
+
+            update() {
+                let needsUpdate = false;
+
+                // 处理移动动画
+                if (this.moving) {
+                    const dx = this.targetX - this.x;
+                    const dy = this.targetY - this.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 1) {
+                        this.x = this.targetX;
+                        this.y = this.targetY;
+                        this.moving = false;
+                    } else {
+                        this.x += dx * 0.1;
+                        this.y += dy * 0.1;
+                    }
+                    needsUpdate = true;
+                }
+
+                // 处理消除动画
+                if (this.removing && this.opacity > 0) {
+                    this.opacity -= 0.02;
+                    needsUpdate = true;
+                }
+
+                return needsUpdate;
+            }
+
+            contains(mouseX, mouseY) {
+                // 如果圆圈已经消失或正在消失，不响应点击
+                if (this.opacity <= 0 || this.removing) {
+                    return false;
+                }
+
+                const distance = Math.sqrt(
+                    Math.pow(mouseX - this.x, 2) + 
+                    Math.pow(mouseY - this.y, 2)
+                );
+
+                return distance <= this.radius;
+            }
+        }
+
+        /**
+         * 计算六边形布局中所有圆形的位置
+         * @param {number} layers - 六边形的层数
+         * @returns {Array} 包含所有圆形坐标的数组
+         */
+        function calculateCirclePositions() {
+            const positions = [];
+            
+            
+            // 第一层
+            positions.push({ x: Math.round(centerX), y: Math.round(centerY) });
+
+            // 第 n 层
+            for (let layer = 1; layer < LAYERS; layer++) {
+                let currentAngle = 30;
+                
+                for (let i = 0; i < 6; i++) {
+                    const radian = (currentAngle * Math.PI) / 180;
+                    const x = centerX + layer * CELL_SIZE * Math.cos(radian);
+                    const y = centerY - layer * CELL_SIZE * Math.sin(radian);
+                    
+                    positions.push({ x: Math.round(x), y: Math.round(y) });
+
+                    if (layer > 1) {
+                        const hexagonsInBetween = layer - 1;
+                        const nextAngle = currentAngle + 60;
+                        const nextRadian = (nextAngle * Math.PI) / 180;
+                        const nextX = centerX + layer * CELL_SIZE * Math.cos(nextRadian);
+                        const nextY = centerY - layer * CELL_SIZE * Math.sin(nextRadian);
+
+                        for (let j = 1; j <= hexagonsInBetween; j++) {
+                            const ratio = j / (hexagonsInBetween + 1);
+                            const inBetweenX = x + (nextX - x) * ratio;
+                            const inBetweenY = y + (nextY - y) * ratio;
+                            positions.push({ x: Math.round(inBetweenX), y: Math.round(inBetweenY) });
+                        }
+                    }
+
+                    currentAngle += 60;
+                }
+            }
+
+            return positions;
+        }
+
+        // 创建圆形数组
+        const positions = calculateCirclePositions();
+        let circles = positions.map((pos) => new Circle(pos.x, pos.y));
+
+        // 把位置按列分组
+        const columnList = positions
+                .sort((a, b) => a.x - b.x)
+                .reduce((acc, cur) => {
+                    if (acc.length > 0 && acc[acc.length - 1][0].x === cur.x) {
+                        acc[acc.length - 1].push(cur)
+                    } else {
+                        acc.push([cur])
+                    }
+                    return acc
+                }, [])
+                .map(item => item.sort((a, b) => b.y - a.y))
+
+        /**
+         * 检查两个圆是否相邻
+         * @param {Circle} circle1 - 第一个圆
+         * @param {Circle} circle2 - 第二个圆
+         * @returns {boolean} 如果两个圆相邻则返回true
+         */
+        function areAdjacent(circle1, circle2) {
+            const distance = Math.sqrt(
+                Math.pow(circle1.x - circle2.x, 2) + 
+                Math.pow(circle1.y - circle2.y, 2)
+            );
+
+            return distance <= CELL_SIZE * 1.2;
+        }
+
+        /**
+         * 交换两个圆的位置
+         * - 设置目标位置并触发移动动画
+         * - 移动完成后检查是否形成新的匹配
+         */
+        function swapCircles(circle1, circle2) {
+            const tempX = circle1.targetX;
+            const tempY = circle1.targetY;
+            circle1.targetX = circle2.targetX;
+            circle1.targetY = circle2.targetY;
+            circle2.targetX = tempX;
+            circle2.targetY = tempY;
+
+            circle1.moving = true;
+            circle2.moving = true;
+        }
+
+        /**
+         * 绘制所有圆形到画布上
+         * - 清空画布并重新绘制所有圆形
+         */
+        function drawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 画小球
+            circles.forEach(circle => circle.draw());
+            drawText();
+        }
+
+        function drawText() {
+            // 画数字
+            ctx.font = "30px sans-serif";
+            ctx.fillStyle = "peru";
+            ctx.fillText(`SCORE:${score}`, 10, 40);
+
+            ctx.font = "30px sans-serif";
+            ctx.fillStyle = "peru";
+            ctx.fillText(`STEPS:${steps}`, canvas.width - 150, 40);
+        }
+
+        /**
+         * 动画循环函数
+         * - 处理圆形的移动和消除动画
+         * - 当有动画需要更新时持续循环
+         */
+        function animate(cb) {
+            let needsUpdate = false;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            circles.forEach(circle => {
+                if (circle.update()) {
+                    needsUpdate = true;
+                }
+                circle.draw();
+            });
+            drawText();
+
+            if (needsUpdate) {
+                requestAnimationFrame(() => animate(cb));
+            } else {
+                if(typeof cb === 'function') {
+                    cb();
+                }
+            }
+        }
+
+        // 修改点击事件处理
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            // 只查找未消失的圆圈
+            const clickedCircle = circles.find(circle => circle.contains(mouseX, mouseY));
+
+            if (clickedCircle) {
+                if (!selectedCircle) {
+                    selectedCircle = clickedCircle;
+                    clickedCircle.selected = true;
+                } else if (selectedCircle === clickedCircle) {
+                    selectedCircle.selected = false;
+                    selectedCircle = null;
+                } else {
+                    if (areAdjacent(selectedCircle, clickedCircle)) {
+
+                        steps -= 1;
+
+                        swapCircles(selectedCircle, clickedCircle);
+                        selectedCircle.selected = false;
+                        selectedCircle = null;
+                        console.log("开始交换动画");
+                        animate(() => {
+                            // 等待移动完成后检查匹配
+                            console.log("交换动画结束, 开始检查匹配");
+                            if (checkMatches()) {
+                                console.log("有匹配, 开始消除");
+                                animate();
+                            }
+                        });
+
+                    } else {
+                        selectedCircle.selected = false;
+                        clickedCircle.selected = true;
+                        selectedCircle = clickedCircle;
+                    }
+                }
+                drawAll();
+            }
+        });
+
+        /**
+         * 处理圆形的下落逻辑
+         * - 检查每一列中的空位
+         * - 使上方的圆形下落填补空位
+         * @returns {boolean} 如果有圆形需要下落则返回true
+         */
+        function handleFalling() {
+            let needsFalling = false;
+
+            // 遍历每列
+            columnList.forEach((col) => {
+                let fallingDist = 0; // 需要下落的距离
+                for (let i = 0; i < col.length; i++) {
+                    const pos = col[i];
+                    const theBall = circles.find(i => (i.x === pos.x && i.y === pos.y));
+                    if (theBall) {
+                        // 位置存在小球
+                        if (fallingDist > 0) {
+                            needsFalling = true;
+                            theBall.targetX = theBall.x;
+                            theBall.targetY = theBall.y + fallingDist * CELL_SIZE;
+                            theBall.moving = true;
+                        }
+                    } else {
+                        //  位置没有小球
+                        fallingDist += 1;
+                    }
+                }
+            })
+
+            if (needsFalling) {
+                console.log('需要下落')
+                // 等待下落动画完成，
+                setTimeout(() => {
+                    console.log("下落完成后500ms, 开始生成新的球")
+                    // 空白处生成新的球
+                    positions.forEach(i => {
+                        if (circles.every(c => (
+                            (c.x !== i.x || c.y !== i.y) &&
+                            (c.targetX !== i.x || c.targetY !== i.y) 
+                        ))) {
+                            console.log("新增", i.x, i.y)
+                            circles.push(new Circle(i.x, i.y))
+                        }
+                    })
+
+                    animate();
+
+                    // 再次检查是否需要消除小球
+                    if (checkMatches()) {
+                        console.log('需要消除')
+                        animate();
+                    }
+                }, 500);
+            } else {
+                console.log('不需要下落')
+                
+                setTimeout(() => {
+                    console.log("500ms后, 开始生成新的球")
+                    positions.forEach(i => {
+                        if (circles.every(c => (
+                            (c.x !== i.x || c.y !== i.y) &&
+                            (c.targetX !== i.x || c.targetY !== i.y) 
+                        ))) {
+                            console.log("新增", i.x, i.y)
+                            circles.push(new Circle(i.x, i.y))
+                        }
+                    })
+                    animate();
+                    console.log('再次检查是否需要消除小球')
+                    if (checkMatches()) {
+                        console.log('需要消除')
+                        animate();
+                    }
+                }, 500)
+            }
+
+            return needsFalling;
+        }
+
+        /**
+         * 检查游戏中的匹配
+         * - 检查垂直方向的匹配（4个或更多相同颜色）
+         * - 检查60度和120度方向的匹配
+         * - 标记匹配的圆形进行消除
+         * - 触发下落逻辑
+         * @returns {boolean} 如果找到匹配则返回true
+         */
+        function checkMatches() {
+            const matches = new Set();
+
+            // 垂直方向检测
+            columnList.forEach((col) => {
+                let sameColorCount = 1;
+                let lastColor = null;
+                let colorCircles = [];
+
+                col.forEach(p => {
+                    const circle = circles.find(c => c.x === p.x && c.y === p.y);
+
+                    if (!circle) {
+                        console.log('p', p);
+                        console.log('circles', circles.map(i => ([i.x, i.y])).sort((a, b) => a[0] - b[0]))
+                    }
+                    if (lastColor === circle.color) {
+                        sameColorCount++;
+                        colorCircles.push(circle);
+                    } else {
+                        if (sameColorCount >= 4) {
+                            colorCircles.forEach(c => matches.add(c));
+                        }
+                        sameColorCount = 1;
+                        colorCircles = [circle];
+                        lastColor = circle.color;
+                    }
+                })
+
+                if (sameColorCount >= 4) {
+                    colorCircles.forEach(c => matches.add(c));
+                }
+            })
+            // 60度和120度的检测
+            circles.forEach(startCircle => {
+                // 60度方向检测
+                let colorCircles60 = [startCircle];
+                let currentX = startCircle.x;
+                let currentY = startCircle.y;
+                
+                for (let i = 1; i < 6; i++) {
+                    const nextX = currentX + COLUMN_DIST;  // 向右
+                    const nextY = currentY + CELL_SIZE / 2;  // 向下
+                    
+                    const nextCircle = circles.find(c => 
+                        Math.abs(c.x - nextX) < COLUMN_DIST / 2 && 
+                        Math.abs(c.y - nextY) < CELL_SIZE / 4 &&
+                        c.color === startCircle.color
+                    );
+
+                    if (nextCircle) {
+                        colorCircles60.push(nextCircle);
+                        currentX = nextX;
+                        currentY = nextY;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (colorCircles60.length >= 4) {
+                    colorCircles60.forEach(c => matches.add(c));
+                }
+
+                // 120度方向检测
+                let colorCircles120 = [startCircle];
+                currentX = startCircle.x;
+                currentY = startCircle.y;
+                
+                for (let i = 1; i < 6; i++) {
+                    const nextX = currentX - COLUMN_DIST;  // 向左
+                    const nextY = currentY + CELL_SIZE / 2;  // 向下
+                    
+                    const nextCircle = circles.find(c => 
+                        !c.removing &&
+                        Math.abs(c.x - nextX) < COLUMN_DIST / 2 && 
+                        Math.abs(c.y - nextY) < CELL_SIZE / 4 &&
+                        c.color === startCircle.color
+                    );
+
+                    if (nextCircle) {
+                        colorCircles120.push(nextCircle);
+                        currentX = nextX;
+                        currentY = nextY;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (colorCircles120.length >= 4) {
+                    colorCircles120.forEach(c => matches.add(c));
+                }
+            });
+
+            // 标记匹配的圆圈为移除状态
+            if (matches.size > 0) {
+                console.log(`找到 ${matches.size} 个匹配的圆圈`);
+                matches.forEach(circle => {
+                    circle.removing = true;
+                    circle.opacity = 1;
+                });
+
+                score += matches.size;
+
+                // 等待消除动画完成后处理下落
+                setTimeout(() => {
+                    console.log('消除动画完成后500ms');
+                    // 消除动画完成 移除消失的小球
+                    circles = circles.filter(i => !i.removing);
+
+                    // 检查是否需要下落动画
+                    if (handleFalling()) {
+                        console.log('开始下落动画');
+                        animate(); // 开始下落动画
+                    }
+                }, 500); // 等待消除动画完成
+
+                return true;
+            }
+            return false;
+        }
+
+        // 初始绘制
+        drawAll();
+    </script>
+</body>
+</html>
