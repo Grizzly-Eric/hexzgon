@@ -177,7 +177,7 @@
         const columnList = positions
                 .sort((a, b) => a.x - b.x)
                 .reduce((acc, cur) => {
-                    if (acc.length > 0 && acc[acc.length - 1][0].x === cur.x) {
+                    if (acc.length > 0 && Math.abs(acc[acc.length - 1][0].x - cur.x) < CIRCLE_RADIUS) {
                         acc[acc.length - 1].push(cur)
                     } else {
                         acc.push([cur])
