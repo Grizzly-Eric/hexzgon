@@ -20,14 +20,13 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+
+        const VERSION = "1.0.0";
         const canvas = document.getElementById('gameCanvas');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         const ctx = canvas.getContext('2d');
-        let selectedCircle = null;
-
-        let steps = 20;
-        let score = 0;
+        
 
         // 颜色数组
         const colors = [
@@ -39,12 +38,13 @@
             '#A68A6C'   // 明亮莫兰迪棕
         ];
 
+        // 游戏常量
         const LAYERS = 5;
         const CELL_SIZE = Math.floor(Math.min(canvas.width, canvas.height) / 10);
         const COLUMN_DIST = Math.cos(30 * Math.PI / 180) * CELL_SIZE;
         const CIRCLE_RADIUS = Math.floor(CELL_SIZE / 3);
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
+        const CENTER_X = canvas.width / 2;
+        const CENTER_Y = canvas.height / 2;
 
         /**
          * Circle 类：表示游戏中的圆形对象
@@ -124,6 +124,45 @@
             }
         }
 
+        class Button {
+            constructor(text, width, height, fontSize) {
+                this.text = text;
+                this.width = width;
+                this.height = height;
+                this.fontSize = fontSize || 16;
+            }
+
+            draw(centerX, centerY) {
+                ctx.font = `${this.fontSize}px sans-serif`;
+                const { width } = ctx.measureText('重新开始');
+                ctx.fillText('重新开始', centerX - width / 2, centerY + this.fontSize / 2 - 2);
+
+                ctx.lineWidth = 2;
+                ctx.roundRect(centerX - this.width / 2, centerY - this.height / 2, this.width, this.height, 4);
+                ctx.stroke();
+
+                // store the button scope
+                this.positions = {
+                    x1: centerX - this.width / 2,
+                    x2: centerX + this.width / 2,
+                    y1: centerY - this.height / 2,
+                    y2: centerY + this.height / 2,
+                }
+            }
+
+            clickCheck(mouseX, mouseY) {
+                const {x1, x2, y1, y2} = this.positions;
+                return (
+                    mouseX > x1 &&
+                    mouseX < x2 &&
+                    mouseY > y1 &&
+                    mouseY < y2
+                )
+            }
+        }
+
+        const restartButton = new Button('重新开始', 90, 30, 14);
+
         /**
          * 计算六边形布局中所有圆形的位置
          * @param {number} layers - 六边形的层数
@@ -134,7 +173,7 @@
             
             
             // 第一层
-            positions.push({ x: Math.round(centerX), y: Math.round(centerY) });
+            positions.push({ x: Math.round(CENTER_X), y: Math.round(CENTER_Y) });
 
             // 第 n 层
             for (let layer = 1; layer < LAYERS; layer++) {
@@ -142,8 +181,8 @@
                 
                 for (let i = 0; i < 6; i++) {
                     const radian = (currentAngle * Math.PI) / 180;
-                    const x = centerX + layer * CELL_SIZE * Math.cos(radian);
-                    const y = centerY - layer * CELL_SIZE * Math.sin(radian);
+                    const x = CENTER_X + layer * CELL_SIZE * Math.cos(radian);
+                    const y = CENTER_Y - layer * CELL_SIZE * Math.sin(radian);
                     
                     positions.push({ x: Math.round(x), y: Math.round(y) });
 
@@ -151,8 +190,8 @@
                         const hexagonsInBetween = layer - 1;
                         const nextAngle = currentAngle + 60;
                         const nextRadian = (nextAngle * Math.PI) / 180;
-                        const nextX = centerX + layer * CELL_SIZE * Math.cos(nextRadian);
-                        const nextY = centerY - layer * CELL_SIZE * Math.sin(nextRadian);
+                        const nextX = CENTER_X + layer * CELL_SIZE * Math.cos(nextRadian);
+                        const nextY = CENTER_Y - layer * CELL_SIZE * Math.sin(nextRadian);
 
                         for (let j = 1; j <= hexagonsInBetween; j++) {
                             const ratio = j / (hexagonsInBetween + 1);
@@ -169,9 +208,9 @@
             return positions;
         }
 
+
         // 创建圆形数组
         const positions = calculateCirclePositions();
-        let circles = positions.map((pos) => new Circle(pos.x, pos.y));
 
         // 把位置按列分组
         const columnList = positions
@@ -186,6 +225,21 @@
                 }, [])
                 .map(item => item.sort((a, b) => b.y - a.y))
 
+        // 游戏状态值
+        let circles;
+        let selectedCircle;
+        let steps;
+        let score;
+        let isEnd;
+
+        // 开始游戏
+        const startGame = () => {
+            circles = positions.map((pos) => new Circle(pos.x, pos.y));
+            steps = 20;
+            score = 0;
+            selectedCircle = null;
+            isEnd = false;
+        };
         /**
          * 检查两个圆是否相邻
          * @param {Circle} circle1 - 第一个圆
@@ -223,21 +277,56 @@
          * - 清空画布并重新绘制所有圆形
          */
         function drawAll() {
+            // 清空画布
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
             // 画小球
             circles.forEach(circle => circle.draw());
+
+            // 画文字
             drawText();
         }
 
         function drawText() {
-            // 画数字
-            ctx.font = "30px sans-serif";
+            // 画分数
+            ctx.font = "bold 30px sans-serif";
             ctx.fillStyle = "peru";
             ctx.fillText(`SCORE:${score}`, 10, 40);
 
-            ctx.font = "30px sans-serif";
+            // 画步数
+            ctx.font = "bold 30px sans-serif";
             ctx.fillStyle = "peru";
             ctx.fillText(`STEPS:${steps}`, canvas.width - 150, 40);
+
+            // 画版本号
+            ctx.font = "14px sans-serif";
+            ctx.fillStyle = "peru";
+            ctx.fillText(`v${VERSION}`, 10, canvas.height - 14);
+
+            if (isEnd) {
+                // 画结束语
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.roundRect(CENTER_X - 100, CENTER_Y - 75, 200, 150, 6);
+                ctx.fillStyle = 'darkgoldenrod';
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                ctx.font = "20px sans-serif";
+                ctx.fillStyle = "white";
+                let txt = `游戏结束, ${score}分`;
+                const { width: _width } = ctx.measureText(txt);
+                ctx.fillText(txt, CENTER_X - _width / 2, CENTER_Y - 20);
+
+                // 画restart按钮
+                restartButton.draw(CENTER_X, CENTER_Y + 20);
+            }
+            
         }
 
         /**
@@ -269,11 +358,22 @@
         // 修改点击事件处理
         canvas.addEventListener('click', (event) => {
 
-            if (steps <= 0) return;
-            
             const rect = canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
+
+
+            if (steps <= 0) {
+                // 监听重新开始
+                if (restartButton.clickCheck(mouseX, mouseY)) {
+                    // 重置游戏数值
+                    startGame();
+                    drawAll();
+                }
+
+                return;
+            };
+              
 
             // 只查找未消失的圆圈
             const clickedCircle = circles.find(circle => circle.contains(mouseX, mouseY));
@@ -518,9 +618,21 @@
                 }, 500); // 等待消除动画完成
 
                 return true;
+            } else {
+                console.log('没有可消除的了', steps)
+                if (steps <= 0) {
+                    console.log('结束了')
+                    isEnd = true;
+                    drawAll();
+                };
+
+                return false;
             }
-            return false;
+            
         }
+
+        // 游戏数值初始化
+        startGame();
 
         // 初始绘制
         drawAll();
