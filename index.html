@@ -23,10 +23,14 @@
 
         const VERSION = "1.0.0";
         const canvas = document.getElementById('gameCanvas');
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
         const ctx = canvas.getContext('2d');
-        
+        const dpr = window.devicePixelRatio;
+        // 获取css的宽高
+        let { width: cssWidth, height: cssHeight } = canvas.getBoundingClientRect();
+        // 根据dpr，扩大canvas画布的像素，使1个canvas像素和1个物理像素相等
+        canvas.width = dpr * cssWidth;
+        canvas.height = dpr * cssHeight;
+        ctx.scale(dpr,dpr);
 
         // 颜色数组
         const colors = [
@@ -289,14 +293,14 @@
 
         function drawText() {
             // 画分数
-            ctx.font = "bold 30px sans-serif";
+            ctx.font = "bold 50px sans-serif";
             ctx.fillStyle = "peru";
-            ctx.fillText(`SCORE:${score}`, 10, 40);
+            ctx.fillText(`SCORE:${score}`, 10, 60);
 
             // 画步数
-            ctx.font = "bold 30px sans-serif";
+            ctx.font = "bold 50px sans-serif";
             ctx.fillStyle = "peru";
-            ctx.fillText(`STEPS:${steps}`, canvas.width - 150, 40);
+            ctx.fillText(`STEPS:${steps}`, canvas.width - 250, 60);
 
             // 画版本号
             ctx.font = "14px sans-serif";
