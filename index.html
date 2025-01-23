@@ -48,7 +48,7 @@
 
         // 游戏常量
         const LAYERS = 5;
-        const CELL_SIZE = Math.floor(Math.min(canvas.width, canvas.height) / 10);
+        const CELL_SIZE = Math.floor(Math.min(canvas.width, canvas.height) / 9);
         const COLUMN_DIST = Math.cos(30 * Math.PI / 180) * CELL_SIZE;
         const CIRCLE_RADIUS = Math.floor(CELL_SIZE / 3);
         const CENTER_X = canvas.width / 2;
@@ -222,6 +222,8 @@
 
         // 创建圆形数组
         const positions = calculateCirclePositions();
+
+        console.log('positions', positions);
 
         // 把位置按列分组
         const columnList = positions
