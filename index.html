@@ -216,6 +216,9 @@
             return positions;
         }
 
+        const isSamePos = (a, b) => {
+            return Math.abs(a.x - b.x) < 2 && Math.abs(a.y - b.y) < 2
+        }
 
         // 创建圆形数组
         const positions = calculateCirclePositions();
@@ -434,7 +437,7 @@
                 let fallingDist = 0; // 需要下落的距离
                 for (let i = 0; i < col.length; i++) {
                     const pos = col[i];
-                    const theBall = circles.find(i => (i.x === pos.x && i.y === pos.y));
+                    const theBall = circles.find(i => isSamePos(pos, i));
                     if (theBall) {
                         // 位置存在小球
                         if (fallingDist > 0) {
@@ -449,10 +452,6 @@
                     }
                 }
             })
-
-            const isSamePos = (a, b) => {
-                return Math.abs(a.x - b.x) < 2 && Math.abs(a.y - b.y) < 2
-            }
 
             if (needsFalling) {
                 console.log('需要下落')
@@ -516,23 +515,25 @@
                 let colorCircles = [];
 
                 col.forEach(p => {
-                    const circle = circles.find(c => c.x === p.x && c.y === p.y);
+                    const circle = circles.find(c => isSamePos(c, p));
 
                     if (!circle) {
                         console.log('p', p);
                         console.log('circles', circles.map(i => ([i.x, i.y])).sort((a, b) => a[0] - b[0]))
-                    }
-                    if (lastColor === circle.color) {
-                        sameColorCount++;
-                        colorCircles.push(circle);
                     } else {
-                        if (sameColorCount >= 4) {
-                            colorCircles.forEach(c => matches.add(c));
+                        if (lastColor === circle.color) {
+                            sameColorCount++;
+                            colorCircles.push(circle);
+                        } else {
+                            if (sameColorCount >= 4) {
+                                colorCircles.forEach(c => matches.add(c));
+                            }
+                            sameColorCount = 1;
+                            colorCircles = [circle];
+                            lastColor = circle.color;
                         }
-                        sameColorCount = 1;
-                        colorCircles = [circle];
-                        lastColor = circle.color;
                     }
+                    
                 })
 
                 if (sameColorCount >= 4) {
