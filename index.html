@@ -30,7 +30,6 @@
         // 根据dpr，扩大canvas画布的像素，使1个canvas像素和1个物理像素相等
         canvas.width = dpr * cssWidth;
         canvas.height = dpr * cssHeight;
-        ctx.scale(dpr,dpr);
 
         // 颜色数组
         const colors = [
@@ -293,19 +292,19 @@
 
         function drawText() {
             // 画分数
-            ctx.font = "bold 50px sans-serif";
+            ctx.font = "bold 60px sans-serif";
             ctx.fillStyle = "peru";
-            ctx.fillText(`SCORE:${score}`, 10, 60);
+            ctx.fillText(`SCORE:${score}`, 20, 80);
 
             // 画步数
-            ctx.font = "bold 50px sans-serif";
+            ctx.font = "bold 60px sans-serif";
             ctx.fillStyle = "peru";
-            ctx.fillText(`STEPS:${steps}`, canvas.width - 250, 60);
+            ctx.fillText(`STEPS:${steps}`, canvas.width - 300, 80);
 
             // 画版本号
-            ctx.font = "14px sans-serif";
+            ctx.font = "28px sans-serif";
             ctx.fillStyle = "peru";
-            ctx.fillText(`v${VERSION}`, 10, canvas.height - 14);
+            ctx.fillText(`v${VERSION}`, 20, canvas.height - 30);
 
             if (isEnd) {
                 // 画结束语
@@ -363,8 +362,8 @@
         canvas.addEventListener('click', (event) => {
 
             const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
+            const mouseX = (event.clientX - rect.left) * dpr;
+            const mouseY = (event.clientY - rect.top) * dpr;
 
 
             if (steps <= 0) {
@@ -378,8 +377,6 @@
                 return;
             };
               
-
-            // 只查找未消失的圆圈
             const clickedCircle = circles.find(circle => circle.contains(mouseX, mouseY));
 
             if (clickedCircle) {
