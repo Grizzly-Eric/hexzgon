@@ -223,7 +223,23 @@
         // 创建圆形数组
         const positions = calculateCirclePositions();
 
-        console.log('positions', positions);
+        // 对齐每个位置的坐标
+        positions.map(i => {
+            const xTarget = positions.find(j => ( 
+                j.x - i.x > 0 &&
+                j.x - i.x < 2
+            ))
+            const yTarget = positions.find(j => ( 
+                j.y - i.y > 0 &&
+                j.y - i.y < 2
+            ))
+            if (xTarget) {
+                i.x = xTarget.x
+            }
+            if (yTarget) {
+                i.y = yTarget.y
+            }
+        })
 
         // 把位置按列分组
         const columnList = positions
