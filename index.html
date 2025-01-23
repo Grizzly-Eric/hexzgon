@@ -138,7 +138,7 @@
             draw(centerX, centerY) {
                 ctx.font = `${this.fontSize}px sans-serif`;
                 const { width } = ctx.measureText('重新开始');
-                ctx.fillText('重新开始', centerX - width / 2, centerY + this.fontSize / 2 - 2);
+                ctx.fillText('重新开始', centerX - width / 2, centerY + this.fontSize / 2 - 4);
 
                 ctx.lineWidth = 2;
                 ctx.roundRect(centerX - this.width / 2, centerY - this.height / 2, this.width, this.height, 4);
@@ -164,7 +164,7 @@
             }
         }
 
-        const restartButton = new Button('重新开始', 90, 30, 14);
+        const restartButton = new Button('重新开始', 180, 60, 28);
 
         /**
          * 计算六边形布局中所有圆形的位置
@@ -309,25 +309,25 @@
             if (isEnd) {
                 // 画结束语
                 ctx.shadowColor = "black";
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 16;
                 ctx.beginPath();
-                ctx.roundRect(CENTER_X - 100, CENTER_Y - 75, 200, 150, 6);
+                ctx.roundRect(CENTER_X - 200, CENTER_Y - 150, 400, 300, 10);
                 ctx.fillStyle = 'darkgoldenrod';
                 ctx.fill();
                 
                 ctx.shadowBlur = 0;
                 ctx.strokeStyle = 'white';
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 10;
                 ctx.stroke();
 
-                ctx.font = "20px sans-serif";
+                ctx.font = "40px sans-serif";
                 ctx.fillStyle = "white";
                 let txt = `游戏结束, ${score}分`;
                 const { width: _width } = ctx.measureText(txt);
                 ctx.fillText(txt, CENTER_X - _width / 2, CENTER_Y - 20);
 
                 // 画restart按钮
-                restartButton.draw(CENTER_X, CENTER_Y + 20);
+                restartButton.draw(CENTER_X, CENTER_Y + 40);
             }
             
         }
@@ -365,10 +365,11 @@
             const mouseX = (event.clientX - rect.left) * dpr;
             const mouseY = (event.clientY - rect.top) * dpr;
 
-
-            if (steps <= 0) {
+            if (isEnd) {
                 // 监听重新开始
                 if (restartButton.clickCheck(mouseX, mouseY)) {
+
+                    console.log('start')
                     // 重置游戏数值
                     startGame();
                     drawAll();
@@ -444,6 +445,10 @@
                 }
             })
 
+            const isSamePos = (a, b) => {
+                return Math.abs(a.x - b.x) < 2 && Math.abs(a.y - b.y) < 2
+            }
+
             if (needsFalling) {
                 console.log('需要下落')
                 // 等待下落动画完成，
@@ -451,10 +456,7 @@
                     console.log("下落完成后500ms, 开始生成新的球")
                     // 空白处生成新的球
                     positions.forEach(i => {
-                        if (circles.every(c => (
-                            (c.x !== i.x || c.y !== i.y) &&
-                            (c.targetX !== i.x || c.targetY !== i.y) 
-                        ))) {
+                        if (circles.every(c => !isSamePos(c, i))) {
                             console.log("新增", i.x, i.y)
                             circles.push(new Circle(i.x, i.y))
                         }
@@ -474,10 +476,7 @@
                 setTimeout(() => {
                     console.log("500ms后, 开始生成新的球")
                     positions.forEach(i => {
-                        if (circles.every(c => (
-                            (c.x !== i.x || c.y !== i.y) &&
-                            (c.targetX !== i.x || c.targetY !== i.y) 
-                        ))) {
+                        if (circles.every(c => !isSamePos(c, i))) {
                             console.log("新增", i.x, i.y)
                             circles.push(new Circle(i.x, i.y))
                         }
