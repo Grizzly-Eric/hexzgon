@@ -260,6 +260,7 @@
         let steps;
         let score;
         let isEnd;
+        let isMoving;
 
         // 开始游戏
         const startGame = () => {
@@ -268,6 +269,7 @@
             score = 0;
             selectedCircle = null;
             isEnd = false;
+            isMoving = false;
         };
         /**
          * 检查两个圆是否相邻
@@ -392,10 +394,8 @@
             const mouseY = (event.clientY - rect.top) * dpr;
 
             if (isEnd) {
-                // 监听重新开始
+                // 只监听重新开始
                 if (restartButton.clickCheck(mouseX, mouseY)) {
-
-                    console.log('start')
                     // 重置游戏数值
                     startGame();
                     drawAll();
@@ -403,6 +403,10 @@
 
                 return;
             };
+
+            if (isMoving) {
+                return;
+            }
               
             const clickedCircle = circles.find(circle => circle.contains(mouseX, mouseY));
 
@@ -415,9 +419,9 @@
                     selectedCircle = null;
                 } else {
                     if (areAdjacent(selectedCircle, clickedCircle)) {
-
+                        // 如果相邻，执行交换
+                        isMoving = true;
                         steps -= 1;
-
                         swapCircles(selectedCircle, clickedCircle);
                         selectedCircle.selected = false;
                         selectedCircle = null;
@@ -432,6 +436,7 @@
                         });
 
                     } else {
+                        // 如果不相邻，替换选中圆圈
                         selectedCircle.selected = false;
                         clickedCircle.selected = true;
                         selectedCircle = clickedCircle;
@@ -644,6 +649,7 @@
                 return true;
             } else {
                 console.log('没有可消除的了', steps)
+                isMoving = false;
                 if (steps <= 0) {
                     console.log('结束了')
                     isEnd = true;
