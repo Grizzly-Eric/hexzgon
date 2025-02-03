@@ -48,7 +48,8 @@
 
         // 游戏常量
         const LAYERS = 5;
-        const CELL_SIZE = Math.floor(Math.min(canvas.width, canvas.height) / 9);
+        const SHORT_SIDE = Math.min(canvas.width, canvas.height);
+        const CELL_SIZE = Math.floor(SHORT_SIDE / 9);
         const COLUMN_DIST = Math.cos(30 * Math.PI / 180) * CELL_SIZE;
         const CIRCLE_RADIUS = Math.floor(CELL_SIZE / 3);
         const CENTER_X = canvas.width / 2;
@@ -142,8 +143,8 @@
 
             draw(centerX, centerY) {
                 ctx.font = `${this.fontSize}px sans-serif`;
-                const { width } = ctx.measureText('重新开始');
-                ctx.fillText('重新开始', centerX - width / 2, centerY + this.fontSize / 2 - 4);
+                const { width } = ctx.measureText(this.text);
+                ctx.fillText(this.text, centerX - width / 2, centerY + this.fontSize / 2 - 4);
 
                 ctx.lineWidth = 2;
                 ctx.roundRect(centerX - this.width / 2, centerY - this.height / 2, this.width, this.height, 4);
@@ -170,6 +171,7 @@
         }
 
         const restartButton = new Button('重新开始', 180, 60, 28);
+        const restartButton2 = new Button('重新开始', 180, 60, 28);
 
         /**
          * 计算六边形布局中所有圆形的位置
@@ -356,6 +358,9 @@
 
                 // 画restart按钮
                 restartButton.draw(CENTER_X, CENTER_Y + 40);
+            } else {
+                // 画restart按钮
+                restartButton2.draw(CENTER_X, CENTER_Y + SHORT_SIDE / 2 + CELL_SIZE);
             }
             
         }
@@ -406,6 +411,15 @@
 
             if (isMoving) {
                 return;
+            }
+
+            // 监听重新开始
+            if (restartButton2.clickCheck(mouseX, mouseY)) {
+                if (confirm('确认重开吗？')) {
+                    // 重置游戏数值
+                    startGame();
+                    drawAll();    
+                }
             }
               
             const clickedCircle = circles.find(circle => circle.contains(mouseX, mouseY));
